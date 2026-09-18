@@ -182,40 +182,41 @@ export async function replyByScoring(history, onStep = () => {}, { vocab = '10k'
   return { reply: words.join(' '), cost, calls, stuck };
 }
 
-// Tree mode: Jev walks a tree of word groups built by meaning (see build-tree.js).
-// Each step picks a broad group (or ends the reply), then narrower groups, then the word:
-// about 3-4 small Jev calls per word.
+// Tree modes: Jev walks a tree of groups built by meaning (see build-tree.js), from a
+// broad group down to one item. Word trees give one word per walk; the reply tree gives
+// a whole reply sentence taken from real assistant replies.
 const treeCache = {};
-const loadTree = (vocab) =>
-  (treeCache[vocab] ??= JSON.parse(readFileSync(new URL(`./data/tree-${vocab}.json`, import.meta.url), 'utf8')));
+const loadTree = (file) => (treeCache[file] ??= JSON.parse(readFileSync(new URL(`./data/${file}`, import.meta.url), 'utf8')));
+const leafItems = (node) => node.items ?? node.words; // tree-30k.json predates the `items` key
 
-export async function replyByTree(history, onStep = () => {}, { vocab = '30k' } = {}) {
-  const root = loadTree(vocab);
+// Walks from the root to a leaf group, one Jev choice per level. Returns null if Jev ends the reply.
+async function walkTree(root, state, { groupPrompt, describe, allowEnd }) {
+  let node = root, cost = 0, calls = 0;
+  while (node.children) {
+    const criteria = Object.fromEntries(node.children.map((c, i) => [`g${i}`, describe(c.label)]));
+    if (node === root && allowEnd) criteria[END] = 'No next word: the reply is complete';
+    const r = await jev(state, { group: { type: 'choice', instructions: groupPrompt, criteria } });
+    cost += r.cost, calls++;
+    if (r.answers.group.choice === END) return { node: null, cost, calls };
+    node = node.children[+r.answers.group.choice.slice(1)];
+  }
+  return { node, cost, calls };
+}
+
+export async function replyByTree(history, onStep = () => {}, { tree = 'tree-30k.json' } = {}) {
+  const root = loadTree(tree);
   const words = [];
   let cost = 0, calls = 0, stuck = false;
   while (words.length < MAX_WORDS) {
     const state = chatState(history, words.join(' '));
-    let node = root;
-    let ended = false;
-    while (node.children) {
-      const criteria = Object.fromEntries(node.children.map((c, i) => [`g${i}`, `Words like: ${c.label}`]));
-      if (node === root && words.length) criteria[END] = 'No next word: the reply is complete';
-      const r = await jev(state, {
-        group: {
-          type: 'choice',
-          instructions: `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which group contains the best next word?`,
-          criteria,
-        },
-      });
-      cost += r.cost, calls++;
-      if (r.answers.group.choice === END) {
-        ended = true;
-        break;
-      }
-      node = node.children[+r.answers.group.choice.slice(1)];
-    }
-    if (ended) break;
-    const options = node.words.filter((w) => w !== words.at(-1));
+    const walk = await walkTree(root, state, {
+      groupPrompt: `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which group contains the best next word?`,
+      describe: (label) => `Words like: ${label}`,
+      allowEnd: words.length > 0,
+    });
+    cost += walk.cost, calls += walk.calls;
+    if (!walk.node) break;
+    const options = leafItems(walk.node).filter((w) => w !== words.at(-1));
     const r = await jev(state, {
       word: {
         type: 'choice',
@@ -234,4 +235,27 @@ export async function replyByTree(history, onStep = () => {}, { vocab = '30k' } 
     onStep(words.join(' '));
   }
   return { reply: words.join(' '), cost, calls, stuck };
+}
+
+// Reply-tree mode: one walk picks a topic, then a whole reply sentence from real
+// assistant replies (OpenAssistant oasst1). Jev chooses the reply; it cannot compose one.
+export async function replyByReplyTree(history, onStep = () => {}) {
+  const root = loadTree('tree-replies.json');
+  const state = { conversation: history };
+  const walk = await walkTree(root, state, {
+    groupPrompt: `${ROLE} Which group contains the best reply to the user's last message?`,
+    describe: (label) => `Replies like: ${label}`,
+    allowEnd: false,
+  });
+  const options = walk.node.items;
+  const r = await jev(state, {
+    reply: {
+      type: 'choice',
+      instructions: `${ROLE} Which of these is the best reply to the user's last message?`,
+      criteria: Object.fromEntries(options.map((t, i) => [`r${i}`, t])),
+    },
+  });
+  const reply = options[+r.answers.reply.choice.slice(1)];
+  onStep(reply);
+  return { reply, cost: walk.cost + r.cost, calls: walk.calls + 1, stuck: false };
 }

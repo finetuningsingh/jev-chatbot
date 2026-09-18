@@ -1,103 +1,143 @@
-// Builds data/tree-<vocab>.json: a tree of word groups by meaning, for the tree mode.
-// Every word gets an embedding, then k-means splits the list into BRANCHES groups,
-// recursively, until each group has at most LEAF_MAX words (one Jev choice).
-// Usage: node build-tree.js [10k|30k]   (costs about $0.001 in embeddings)
-import { writeFileSync } from 'node:fs';
+// Builds a tree of groups by meaning, which Jev walks down to pick a word or a reply.
+// Every item gets an embedding, then k-means splits the items into BRANCHES groups,
+// recursively, until each group has at most LEAF_MAX items (one Jev choice).
+// Runs once; the tree is saved to data/ and the chat only reads it.
+//
+// Usage:
+//   node build-tree.js words-30k 16    -> data/tree-30k.json       (tree mode)
+//   node build-tree.js words-30k 254   -> data/tree-30k-wide.json  (wide tree mode)
+//   node build-tree.js replies 254     -> data/tree-replies.json   (reply tree mode)
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { ensureKey } from './lib.js';
-import { loadVocab } from './chatbot.js';
 
-const BRANCHES = 16;
+const SOURCES = {
+  'words-30k': { file: 'words-30k.txt', out: (b) => (b === 16 ? 'tree-30k.json' : 'tree-30k-wide.json'), kind: 'words' },
+  replies: { file: 'replies.txt', out: () => 'tree-replies.json', kind: 'sentences' },
+};
+const source = SOURCES[process.argv[2] ?? 'words-30k'];
+const BRANCHES = Number(process.argv[3] ?? 16);
 const LEAF_MAX = 250;
-const LABEL_WORDS = 12; // most frequent words shown to Jev as a group's description
-const vocab = process.argv[2] ?? '30k';
+if (!source || !(BRANCHES >= 2 && BRANCHES <= 254)) {
+  console.error('Usage: node build-tree.js <words-30k|replies> <branches 2-254>');
+  process.exit(1);
+}
 
 await ensureKey();
-const words = loadVocab(vocab);
-const rank = new Map(words.map((w, i) => [w, i]));
+const dataFile = (name) => new URL(`./data/${name}`, import.meta.url);
+const items = readFileSync(dataFile(source.file), 'utf8').split('\n').map((s) => s.trim()).filter(Boolean);
+const rank = new Map(items.map((w, i) => [w, i])); // file order: word frequency, or reply order
 
-async function embed(batch) {
-  const res = await fetch('https://openrouter.ai/api/v1/embeddings', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'openai/text-embedding-3-small', input: batch }),
-  });
-  const json = await res.json();
-  if (!res.ok || json.error) throw new Error(`embeddings -> ${res.status}: ${json.error?.message ?? res.statusText}`);
-  return { vectors: json.data.map((d) => d.embedding), cost: json.usage?.cost ?? 0 };
+// Embeddings are cached (git-ignored) so rebuilding with other settings costs nothing.
+const DIM = 1536;
+const cacheDir = new URL('./data/.cache/', import.meta.url);
+const cacheFile = new URL(`embeddings-${source.file}.bin`, cacheDir);
+let flat;
+if (existsSync(cacheFile)) {
+  flat = new Float32Array(readFileSync(cacheFile).buffer.slice(0));
+  console.log(`using cached embeddings for ${items.length} items`);
+} else {
+  flat = new Float32Array(items.length * DIM);
+  let cost = 0;
+  for (let i = 0; i < items.length; i += 1000) {
+    const batch = items.slice(i, i + 1000);
+    const res = await fetch('https://openrouter.ai/api/v1/embeddings', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'openai/text-embedding-3-small', input: batch }),
+    });
+    const json = await res.json();
+    if (!res.ok || json.error) throw new Error(`embeddings -> ${res.status}: ${json.error?.message ?? res.statusText}`);
+    cost += json.usage?.cost ?? 0;
+    json.data.forEach((d, j) => {
+      const n = Math.hypot(...d.embedding);
+      flat.set(d.embedding.map((x) => x / n), (i + j) * DIM);
+    });
+    process.stdout.write(`\rembedded ${Math.min(i + 1000, items.length)}/${items.length} ($${cost.toFixed(5)})`);
+  }
+  console.log();
+  mkdirSync(cacheDir, { recursive: true });
+  writeFileSync(cacheFile, Buffer.from(flat.buffer));
 }
-
-let cost = 0;
-const vec = new Map();
-for (let i = 0; i < words.length; i += 2000) {
-  const batch = words.slice(i, i + 2000);
-  const r = await embed(batch);
-  cost += r.cost;
-  batch.forEach((w, j) => {
-    const v = Float32Array.from(r.vectors[j]);
-    const n = Math.hypot(...v);
-    vec.set(w, v.map((x) => x / n));
-  });
-  process.stdout.write(`\rembedded ${Math.min(i + 2000, words.length)}/${words.length}`);
-}
-console.log();
-
+const vec = (i) => flat.subarray(i * DIM, (i + 1) * DIM);
 const dot = (a, b) => {
   let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+  for (let d = 0; d < DIM; d++) s += a[d] * b[d];
   return s;
 };
 
-// Cosine k-means with k-means++ seeding.
-function kmeans(items, k) {
-  const pts = items.map((w) => vec.get(w));
-  const centers = [pts[Math.floor(Math.random() * pts.length)]];
+// Cosine k-means on item indices, with k-means++ seeding.
+function kmeans(ids, k) {
+  const centers = [vec(ids[Math.floor(Math.random() * ids.length)])];
+  const best = new Float64Array(ids.length).fill(-1);
   while (centers.length < k) {
-    const d = pts.map((p) => 1 - Math.max(...centers.map((c) => dot(p, c))));
-    let r = Math.random() * d.reduce((a, b) => a + b, 0);
-    let i = 0;
-    while ((r -= d[i]) > 0 && i < d.length - 1) i++;
-    centers.push(pts[i]);
-  }
-  let assign = [];
-  for (let iter = 0; iter < 15; iter++) {
-    assign = pts.map((p) => {
-      let best = 0, bs = -Infinity;
-      centers.forEach((c, j) => {
-        const s = dot(p, c);
-        if (s > bs) (bs = s), (best = j);
-      });
-      return best;
+    const c = centers.at(-1);
+    let total = 0;
+    ids.forEach((id, i) => {
+      best[i] = Math.max(best[i], dot(vec(id), c));
+      total += 1 - best[i];
     });
-    for (let j = 0; j < k; j++) {
-      const members = pts.filter((_, i) => assign[i] === j);
-      if (!members.length) continue;
-      const c = new Float32Array(members[0].length);
-      for (const m of members) for (let d = 0; d < c.length; d++) c[d] += m[d];
-      const n = Math.hypot(...c);
-      centers[j] = c.map((x) => x / n);
-    }
+    let r = Math.random() * total, i = 0;
+    while ((r -= 1 - best[i]) > 0 && i < ids.length - 1) i++;
+    centers.push(Float32Array.from(vec(ids[i])));
   }
-  return Array.from({ length: k }, (_, j) => items.filter((_, i) => assign[i] === j)).filter((g) => g.length);
+  let assign = new Int32Array(ids.length);
+  for (let iter = 0; iter < 10; iter++) {
+    ids.forEach((id, i) => {
+      const v = vec(id);
+      let bj = 0, bs = -Infinity;
+      for (let j = 0; j < k; j++) {
+        const s = dot(v, centers[j]);
+        if (s > bs) (bs = s), (bj = j);
+      }
+      assign[i] = bj;
+    });
+    const sums = Array.from({ length: k }, () => new Float32Array(DIM));
+    ids.forEach((id, i) => {
+      const v = vec(id), s = sums[assign[i]];
+      for (let d = 0; d < DIM; d++) s[d] += v[d];
+    });
+    sums.forEach((s, j) => {
+      const n = Math.hypot(...s);
+      if (n > 0) centers[j] = s.map((x) => x / n);
+    });
+  }
+  return { groups: Array.from({ length: k }, (_, j) => ids.filter((_, i) => assign[i] === j)).filter((g) => g.length) };
 }
 
-const byFrequency = (list) => [...list].sort((a, b) => rank.get(a) - rank.get(b));
+// How Jev sees a group: for words, its most frequent words; for replies, the two shortest
+// of the replies closest to the group's centre.
+function label(ids) {
+  if (source.kind === 'words') return [...ids].sort((a, b) => a - b).slice(0, 12).map((i) => items[i]).join(', ');
+  const c = new Float32Array(DIM);
+  for (const id of ids) {
+    const v = vec(id);
+    for (let d = 0; d < DIM; d++) c[d] += v[d];
+  }
+  const typical = [...ids].sort((a, b) => dot(vec(b), c) - dot(vec(a), c)).slice(0, 6);
+  return typical.sort((a, b) => items[a].length - items[b].length).slice(0, 2).map((i) => `"${items[i].slice(0, 90)}"`).join(' / ');
+}
 
-function build(items) {
-  items = byFrequency(items);
-  const label = items.slice(0, LABEL_WORDS).join(', ');
-  if (items.length <= LEAF_MAX) return { label, words: items };
-  let groups = kmeans(items, BRANCHES);
-  // A degenerate split (one group holding nearly everything) falls back to frequency chunks.
-  if (Math.max(...groups.map((g) => g.length)) > items.length * 0.9) {
+function build(ids) {
+  const node = { label: label(ids) };
+  if (ids.length <= LEAF_MAX) return { ...node, items: [...ids].sort((a, b) => a - b).map((i) => items[i]) };
+  let { groups } = kmeans(ids, Math.min(BRANCHES, Math.ceil(ids.length / 2)));
+  // A degenerate split (one group holding nearly everything) falls back to even chunks.
+  if (Math.max(...groups.map((g) => g.length)) > ids.length * 0.9) {
+    const size = Math.ceil(ids.length / BRANCHES);
     groups = [];
-    for (let i = 0; i < items.length; i += Math.ceil(items.length / BRANCHES)) groups.push(items.slice(i, i + Math.ceil(items.length / BRANCHES)));
+    for (let i = 0; i < ids.length; i += size) groups.push(ids.slice(i, i + size));
   }
-  return { label, size: items.length, children: groups.map(build) };
+  return { ...node, size: ids.length, children: groups.map(build) };
 }
 
-const tree = build(words);
+const t0 = performance.now();
+const tree = build(items.map((_, i) => i));
 const leaves = [];
-const walk = (n, depth) => (n.words ? leaves.push(depth) : n.children.forEach((c) => walk(c, depth + 1)));
+const walk = (n, depth) => (n.items ? leaves.push(depth) : n.children.forEach((c) => walk(c, depth + 1)));
 walk(tree, 0);
-writeFileSync(new URL(`./data/tree-${vocab}.json`, import.meta.url), JSON.stringify(tree));
-console.log(`tree-${vocab}.json: ${leaves.length} leaf groups, depth ${Math.min(...leaves)}-${Math.max(...leaves)}, embeddings cost $${cost.toFixed(5)}`);
+const out = source.out(BRANCHES);
+writeFileSync(dataFile(out), JSON.stringify(tree));
+console.log(
+  `${out}: ${tree.children.length} top groups, ${leaves.length} leaf groups, depth ${Math.min(...leaves)}-${Math.max(...leaves)}, ` +
+    `built in ${((performance.now() - t0) / 1000).toFixed(0)}s`,
+);

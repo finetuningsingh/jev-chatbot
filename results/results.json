@@ -223,5 +223,95 @@
     "calls": 260,
     "stuck": false,
     "secs": 41.546401875
+  },
+  {
+    "mode": "wide tree (30k)",
+    "prompt": "hi what is capital of france",
+    "reply": "paris",
+    "cost": 0.00103509,
+    "calls": 3,
+    "stuck": false,
+    "secs": 0.9569468340000001
+  },
+  {
+    "mode": "wide tree (30k)",
+    "prompt": "hi how are you",
+    "reply": "fine and or",
+    "cost": 0.0028793099999999995,
+    "calls": 10,
+    "stuck": true,
+    "secs": 3.025768333
+  },
+  {
+    "mode": "wide tree (30k)",
+    "prompt": "who are you",
+    "reply": "i im am is ist",
+    "cost": 0.00409185,
+    "calls": 14,
+    "stuck": true,
+    "secs": 3.522777417
+  },
+  {
+    "mode": "wide tree (30k)",
+    "prompt": "can you recommend a good book",
+    "reply": "sure what which",
+    "cost": 0.0029204699999999997,
+    "calls": 10,
+    "stuck": true,
+    "secs": 2.585283166
+  },
+  {
+    "mode": "wide tree (30k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "well hmm hmmm",
+    "cost": 0.002699466,
+    "calls": 10,
+    "stuck": true,
+    "secs": 2.9949273749999996
+  },
+  {
+    "mode": "reply tree",
+    "prompt": "hi what is capital of france",
+    "reply": "Paris is the capital of France.",
+    "cost": 0.000743106,
+    "calls": 2,
+    "stuck": false,
+    "secs": 0.6288471249999997
+  },
+  {
+    "mode": "reply tree",
+    "prompt": "hi how are you",
+    "reply": "Hi there! I'm doing well, how about you?",
+    "cost": 0.000778134,
+    "calls": 2,
+    "stuck": false,
+    "secs": 0.7184687920000001
+  },
+  {
+    "mode": "reply tree",
+    "prompt": "who are you",
+    "reply": "Hello, I'm Open Assistant. Is there anything I can help you with?",
+    "cost": 0.0008925,
+    "calls": 2,
+    "stuck": false,
+    "secs": 0.570029959
+  },
+  {
+    "mode": "reply tree",
+    "prompt": "can you recommend a good book",
+    "reply": "Certainly! I recommend \"Dark Matter\" by Blake Crouch.",
+    "cost": 0.000718998,
+    "calls": 2,
+    "stuck": false,
+    "secs": 0.5864695419999998
+  },
+  {
+    "mode": "reply tree",
+    "prompt": "tell me the meaning of life",
+    "reply": "The meaning of life is a philosophical question that has been debated throughout history, and there is no single answer that is universally accepted.",
+    "cost": 0.00074172,
+    "calls": 2,
+    "stuck": false,
+    "secs": 0.5838974590000002
   }
 ]

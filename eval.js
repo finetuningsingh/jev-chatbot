@@ -2,7 +2,7 @@
 // with each reply, its time, and its Jev cost. Usage: node eval.js
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { ensureKey } from './lib.js';
-import { replyByLetters, replyByWords, replyByScoring, replyByTree } from './chatbot.js';
+import { replyByLetters, replyByWords, replyByScoring, replyByTree, replyByReplyTree } from './chatbot.js';
 
 const PROMPTS = [
   'hi what is capital of france',
@@ -15,9 +15,11 @@ const PROMPTS = [
 const MODES = [
   { name: 'letters', run: (h) => replyByLetters(h) },
   { name: 'letter-first (10k)', run: (h) => replyByWords(h) },
-  { name: 'tree (30k)', run: (h) => replyByTree(h, undefined, { vocab: '30k' }) },
+  { name: 'tree (30k)', run: (h) => replyByTree(h, undefined, { tree: 'tree-30k.json' }) },
+  { name: 'wide tree (30k)', run: (h) => replyByTree(h, undefined, { tree: 'tree-30k-wide.json' }) },
   { name: 'scoring (10k)', run: (h) => replyByScoring(h, undefined, { vocab: '10k' }) },
   { name: 'scoring (30k)', run: (h) => replyByScoring(h, undefined, { vocab: '30k' }) },
+  { name: 'reply tree', run: (h) => replyByReplyTree(h) },
 ];
 
 await ensureKey();
