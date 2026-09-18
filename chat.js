@@ -3,6 +3,9 @@
 //        node chat.js --letters  (pure mode: each step picks one of 26 letters, space, or end)
 import { createInterface } from 'node:readline/promises';
 import { replyByLetters, replyByWords } from './chatbot.js';
+import { ensureKey } from './lib.js';
+
+await ensureKey();
 
 const letters = process.argv.includes('--letters');
 const reply = letters ? replyByLetters : replyByWords;
@@ -17,10 +20,17 @@ for (;;) {
   const t0 = performance.now();
   let shown = 0;
   process.stdout.write('jev: ');
-  const r = await reply(history, (soFar) => {
-    process.stdout.write(soFar.slice(shown));
-    shown = soFar.length;
-  });
+  let r;
+  try {
+    r = await reply(history, (soFar) => {
+      process.stdout.write(soFar.slice(shown));
+      shown = soFar.length;
+    });
+  } catch (e) {
+    console.log(`\n     [error: ${e.message}]\n`);
+    history.pop();
+    continue;
+  }
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
   if (r.stuck) process.stdout.write('  [stopped: Jev started repeating itself]');
   console.log(`\n     [${r.calls} Jev calls, ${secs}s, $${r.cost.toFixed(4)}]\n`);

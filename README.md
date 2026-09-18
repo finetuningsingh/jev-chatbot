@@ -9,13 +9,19 @@ those choices, one letter or one word at a time, like a next-token predictor.
 
 ## Run
 
-Requires Node 18+ and an OpenRouter key with Jev access.
+Requires Node 18+ and an [OpenRouter key](https://openrouter.ai/keys) with Jev
+access. There is nothing to install.
 
 ```sh
-cp .env.example .env   # then add your OPENROUTER_API_KEY
 npm run chat           # words mode
 npm run chat:letters   # letters mode
 ```
+
+On the first run, the chat asks for your key. What you type is hidden. It is
+saved to `.env`, which git ignores and which gets owner-only permissions
+(`600`). The key is never printed or committed. To change the key, delete
+`.env` and run again, or edit it. You can also copy `.env.example` to `.env`
+yourself, or set `OPENROUTER_API_KEY` in your shell.
 
 Type a message and press Enter to watch Jev build its reply. An empty line quits.
 
