@@ -165,6 +165,34 @@ What the numbers say:
 - **The reply tree is the cheapest and reads best**, because it doesn't build
   anything: it picks 1 of 17,063 existing replies. See its limits below.
 
+### More word-tree replies
+
+Twenty extra prompts through the default mode, $0.04 in total. The good, the
+odd and the bad:
+
+| Prompt | Word tree |
+| --- | --- |
+| what is 2 plus 2 | `two` |
+| what day comes after monday | `tuesday` |
+| how many legs does a spider have | `viii` |
+| is the earth flat | `no` |
+| are you a robot | `yes` |
+| can you keep a secret | `sure` |
+| i am sad | `sorry you sad understand` |
+| what is the capital of japan | `is tokyo` |
+| tell me a joke | `sure tell joke chicken` |
+| who wrote hamlet | `is was william` |
+| what is the biggest animal | `is the is im is whale` |
+| should i learn python or javascript | `well think consider you yourself consider decide` |
+| do you love me | `i am` |
+| what is the opposite of hot | `is` |
+| what color is the sky | `it is depends time day time night time daytime time nighttime` |
+| what is water made of | `is made of it two of is it is of three is three it that is that it` |
+
+The pattern holds: one-word answers are usually right (`two`, `tuesday`,
+`no`, `viii`), and the answer is often in there somewhere (`tokyo`, `whale`,
+`william`, `chicken`), but the words around it don't form a sentence.
+
 ### The reply tree's limits
 
 Jev can only choose from the 17,063 stored replies. Questions without a
