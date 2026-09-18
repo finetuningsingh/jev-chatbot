@@ -68,6 +68,51 @@ In a separate test on human-written sentences, it ranked the correct next
 letter about 3rd of 26 on average, against about 8th for a fixed
 letter-frequency order.
 
+## Jev knows the answer but can't write it
+
+The same question, asked two ways:
+
+**As a chat reply** (words mode):
+
+```
+you: hi what is capital of france
+jev: hi hello am are can do capital france answer actually answer  [stopped: Jev started repeating itself]
+     [24 Jev calls, 6.5s, $0.0023]
+```
+
+**As one multiple-choice question:**
+
+```js
+import { jev } from './lib.js';
+
+const r = await jev('hi what is capital of france', {
+  answer: {
+    type: 'choice',
+    instructions: "What is the correct answer to the user's question?",
+    criteria: { paris: 'Paris', lyon: 'Lyon', marseille: 'Marseille', berlin: 'Berlin', london: 'London' },
+  },
+});
+// r.answers.answer.choice        -> 'paris'
+// r.answers.answer.probabilities -> { paris: 1, lyon: 0, marseille: 0, berlin: 0, london: 0 }
+// 1 call, 357 ms
+```
+
+Jev has the knowledge. As a single choice, it is correct and fully confident
+in one call. As a chatbot, it has to make 24 dependent choices in a row. Each
+step is a separate decision with no plan for the whole sentence, so the reply
+becomes word salad:
+
+- **Echoing:** words from the user's message are offered first, and Jev picks
+  them back ("hi hello", "capital france").
+- **No grammar:** each word is chosen alone, so the words don't join up
+  ("am are can do").
+- **Loops:** once off track, it cycles ("answer actually answer") until the
+  loop check stops it.
+
+**Takeaway:** use Jev where it is strong, for fast, calibrated single
+decisions such as picking an answer, routing a request or flagging risk. Have
+an LLM write the text. Jev is not a replacement for a text generator.
+
 ## Files
 
 - `chatbot.js`: `replyByLetters` and `replyByWords`
