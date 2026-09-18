@@ -1,0 +1,227 @@
+[
+  {
+    "mode": "letters",
+    "prompt": "hi what is capital of france",
+    "reply": "hi w i h",
+    "cost": 0.00040857599999999996,
+    "calls": 12,
+    "stuck": true,
+    "secs": 2.964089583
+  },
+  {
+    "mode": "letters",
+    "prompt": "hi how are you",
+    "reply": "hi h u e s s",
+    "cost": 0.00047590199999999994,
+    "calls": 14,
+    "stuck": false,
+    "secs": 3.626370083
+  },
+  {
+    "mode": "letters",
+    "prompt": "who are you",
+    "reply": "i a",
+    "cost": 0.000236544,
+    "calls": 7,
+    "stuck": true,
+    "secs": 2.2625685829999997
+  },
+  {
+    "mode": "letters",
+    "prompt": "can you recommend a good book",
+    "reply": "a",
+    "cost": 0.00020349000000000002,
+    "calls": 6,
+    "stuck": true,
+    "secs": 1.4852731670000001
+  },
+  {
+    "mode": "letters",
+    "prompt": "tell me the meaning of life",
+    "reply": "ab s",
+    "cost": 0.000271824,
+    "calls": 8,
+    "stuck": true,
+    "secs": 2.2929667919999996
+  },
+  {
+    "mode": "letter-first (10k)",
+    "prompt": "hi what is capital of france",
+    "reply": "hi how with what am are can answer ask answer a answer ask",
+    "cost": 0.0028470960000000003,
+    "calls": 30,
+    "stuck": true,
+    "secs": 7.334987375
+  },
+  {
+    "mode": "letter-first (10k)",
+    "prompt": "hi how are you",
+    "reply": "hi how have had thanks well how same how",
+    "cost": 0.0017561459999999994,
+    "calls": 19,
+    "stuck": false,
+    "secs": 4.682878708
+  },
+  {
+    "mode": "letter-first (10k)",
+    "prompt": "who are you",
+    "reply": "i am a assistant",
+    "cost": 0.000798336,
+    "calls": 9,
+    "stuck": false,
+    "secs": 2.298357334
+  },
+  {
+    "mode": "letter-first (10k)",
+    "prompt": "can you recommend a good book",
+    "reply": "a an",
+    "cost": 0.000754866,
+    "calls": 8,
+    "stuck": true,
+    "secs": 2.937588459
+  },
+  {
+    "mode": "letter-first (10k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "the to of top",
+    "cost": 0.000784266,
+    "calls": 9,
+    "stuck": false,
+    "secs": 2.949414208
+  },
+  {
+    "mode": "tree (30k)",
+    "prompt": "hi what is capital of france",
+    "reply": "hi hello the is the what that the how is the paris is the",
+    "cost": 0.002428944000000002,
+    "calls": 61,
+    "stuck": true,
+    "secs": 15.283180167000003
+  },
+  {
+    "mode": "tree (30k)",
+    "prompt": "hi how are you",
+    "reply": "hi well good and you",
+    "cost": 0.0008990099999999999,
+    "calls": 18,
+    "stuck": false,
+    "secs": 4.455342582999999
+  },
+  {
+    "mode": "tree (30k)",
+    "prompt": "who are you",
+    "reply": "i im am just ai be are well and how",
+    "cost": 0.0019468680000000003,
+    "calls": 46,
+    "stuck": true,
+    "secs": 12.848111833
+  },
+  {
+    "mode": "tree (30k)",
+    "prompt": "can you recommend a good book",
+    "reply": "sure what you like about in about bout in that about",
+    "cost": 0.002651838,
+    "calls": 45,
+    "stuck": true,
+    "secs": 11.705665749999998
+  },
+  {
+    "mode": "tree (30k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "the is has what that",
+    "cost": 0.0010484460000000002,
+    "calls": 28,
+    "stuck": true,
+    "secs": 7.097769542
+  },
+  {
+    "mode": "scoring (10k)",
+    "prompt": "hi what is capital of france",
+    "reply": "hi paris is of france",
+    "cost": 0.035489622,
+    "calls": 24,
+    "stuck": false,
+    "secs": 7.486458666999999
+  },
+  {
+    "mode": "scoring (10k)",
+    "prompt": "hi how are you",
+    "reply": "hi i am good and how you are",
+    "cost": 0.053237519999999997,
+    "calls": 36,
+    "stuck": false,
+    "secs": 12.177538332999998
+  },
+  {
+    "mode": "scoring (10k)",
+    "prompt": "who are you",
+    "reply": "i am a assistant helpful to you",
+    "cost": 0.04733244599999999,
+    "calls": 32,
+    "stuck": false,
+    "secs": 9.882733832999998
+  },
+  {
+    "mode": "scoring (10k)",
+    "prompt": "can you recommend a good book",
+    "reply": "sure depends what you like tell you what whats you like whats",
+    "cost": 0.08285268600000001,
+    "calls": 56,
+    "stuck": true,
+    "secs": 18.665118792000005
+  },
+  {
+    "mode": "scoring (10k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "well depends on you is yourself",
+    "cost": 0.041430984,
+    "calls": 28,
+    "stuck": false,
+    "secs": 9.775441541
+  },
+  {
+    "mode": "scoring (30k)",
+    "prompt": "hi what is capital of france",
+    "reply": "hi the is capital of france paris period",
+    "cost": 0.17002767600000004,
+    "calls": 90,
+    "stuck": false,
+    "secs": 15.640629291999998
+  },
+  {
+    "mode": "scoring (30k)",
+    "prompt": "hi how are you",
+    "reply": "hi im ood and how you are too",
+    "cost": 0.17001062399999997,
+    "calls": 90,
+    "stuck": false,
+    "secs": 16.181739042
+  },
+  {
+    "mode": "scoring (30k)",
+    "prompt": "who are you",
+    "reply": "hi i am a assistant helpful to you and for need anything do can foryour whatyou nd d correcting sory wouid sorry you sorry im sorry you",
+    "cost": 0.548063964,
+    "calls": 290,
+    "stuck": true,
+    "secs": 46.20046537500001
+  },
+  {
+    "mode": "scoring (30k)",
+    "prompt": "can you recommend a good book",
+    "reply": "sure depends what you like do you what like likes what like you sorry rewrite what wouid you like",
+    "cost": 0.3969498960000001,
+    "calls": 210,
+    "stuck": true,
+    "secs": 33.918474499999995
+  },
+  {
+    "mode": "scoring (30k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "well depends on you your own upto yourself is decide foryour the correcting sorry the sorry orry sorry anyway anyhow actually is varies subjective it",
+    "cost": 0.4916614500000001,
+    "calls": 260,
+    "stuck": false,
+    "secs": 41.546401875
+  }
+]

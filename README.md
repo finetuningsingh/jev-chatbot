@@ -4,8 +4,12 @@ An experiment: can [TypeSafe's Jev](https://typesafe.ai/blog/introducing-system-
 act as a chatbot? Jev doesn't generate text. It answers `choice` questions
 with a probability for each option. This project builds every reply out of
 those choices, one letter or one word at a time, like a next-token predictor.
+It compares five ways of doing that.
 
-**Short answer: no.** Replies fall apart after a few words. Details are below.
+**Short answer: no.** The best mode opens replies sensibly ("hi paris is of
+france", "hi i am good and how you are") but falls apart after a few words.
+The same question asked as one multiple-choice call gets the right answer
+with probability 1.
 
 ## Run
 
@@ -13,10 +17,15 @@ Requires Node 18+ and an [OpenRouter key](https://openrouter.ai/keys) with Jev
 access. There is nothing to install.
 
 ```sh
-npm run chat           # scoring mode (best, ~10 s and ~$0.05 per reply)
-npm run chat:fast      # letter-first mode (~3 s, ~$0.001 per reply)
+npm run chat           # scoring mode, 10k words (best replies, ~12 s and ~$0.05 per reply)
+npm run chat:30k       # scoring mode, 30k words (~31 s and ~$0.36 per reply)
+npm run chat:tree      # tree mode, 30k words (~10 s and ~$0.002 per reply)
+npm run chat:fast      # letter-first mode (~4 s and ~$0.001 per reply)
 npm run chat:letters   # letters mode
+npm run eval           # run every mode on the test prompts -> results/results.md
 ```
+
+Type a message and press Enter to watch Jev build its reply. An empty line quits.
 
 On the first run, the chat asks for your key. What you type is hidden. It is
 saved to `.env`, which git ignores and which gets owner-only permissions
@@ -24,89 +33,72 @@ saved to `.env`, which git ignores and which gets owner-only permissions
 `.env` and run again, or edit it. You can also copy `.env.example` to `.env`
 yourself, or set `OPENROUTER_API_KEY` in your shell.
 
-Type a message and press Enter to watch Jev build its reply. An empty line quits.
+## The five modes
 
-## How it works
+| Mode | How each word (or letter) is chosen | Jev calls per word |
+| --- | --- | --- |
+| **letters** | Pick one of 26 letters, `space`, or `end` | 1 per letter |
+| **letter-first** | Pick the first letter (26), then the word from up to 250 words starting with it | 2 |
+| **tree** | Walk a tree of word groups built by meaning: a broad group (e.g. *people*, *places*, *food*, *feelings*), then narrower groups, then the word | about 3–4 |
+| **scoring** | Every word in the list competes: Jev picks within every group of 250 in parallel, the top 3 of each group advance, and a final choice picks the word | 4 (10k words) or about 9 (30k) |
 
-- **Letters mode** (`replyByLetters`): each step asks Jev to choose one of the
-  26 letters, `space`, or `end`. The state holds the conversation and the reply
-  so far as a JSON string, so spaces stay visible.
-- **Words mode** (`replyByWords`): each step asks Jev for the next word's first
-  letter (26 letters, or `end`). Then it asks for the word itself from up to 250
-  candidates starting with that letter. Candidates are words from the
-  conversation first, then `data/words-10k.txt`. That takes two Jev calls per word.
-
-- **Scoring mode** (`replyByScoring`, the default): every word in the
-  dictionary competes at every step. Round 1 splits the ~9,900 words into
-  groups of 250 (Jev's limit is 255 options per question). Jev picks within
-  every group in parallel, using 3 requests of 15 groups each because of the
-  ~32K-token request limit. Round 2 picks the next word from each group's top
-  3, or ends the reply. That's 4 Jev calls per word.
-
-The letter-first mode has two built-in problems. Jev has to know the word
-before it can pick the right first letter, and a wrong letter rules out the
-right word. Scoring mode removes both.
-
-All modes always take the top choice, without sampling. Options that make no
-sense are removed: a double space, ending an empty reply, and repeating the
-previous word. A reply is cut off and marked
-`[stopped: Jev started repeating itself]` when it falls into a cycle.
+- **Word lists:** `data/words-10k.txt` holds the 10,000 most common words on
+  the English web. `data/words-30k.txt` holds the 30,000 most common words in
+  movie and TV subtitles, so closer to spoken English.
+- **The tree** (`data/tree-30k.json`) is built by `build-tree.js`. It
+  embeds all 30k words with `openai/text-embedding-3-small`, which cost
+  $0.0012. Then k-means splits them into 16 groups, recursively, until each
+  group has at most 250 words. That gives 331 groups, 2–3 levels deep. Jev
+  sees each group as its 12 most common words, e.g. "Words like: girl,
+  mother, woman, mom, wife, daughter…".
+- **All modes** always take the top choice, without sampling. Options that make
+  no sense are removed: a double space, ending an empty reply, and repeating
+  the previous word. A reply is cut off and marked
+  `[stopped: Jev started repeating itself]` when it falls into a cycle.
 
 ## Results (2026-09-18, `typesafe/jev-1.13`)
 
-| Prompt | Letters mode | Words mode |
-| --- | --- | --- |
-| hi how are you | `hhhhhhhhh h hhhh…` | `hi how have had same the time` |
-| who are you | `i a a a a…` | `i am a assistant` |
-| what is the capital of france | `a c a a a aa…` | `capital is a city france in country called capital` |
-| can you recommend a good book | `a a a a…` | `a and book recommend recommendation and answer ask` (loop) |
-| tell me the meaning of life | — | `the to of top` |
+Generated by `npm run eval`. Full output: [`results/results.md`](results/results.md).
 
-Words mode takes about 2–6 s and costs under $0.001 per reply. Letters mode
-takes about 30 s per reply when it runs to its 150-step limit.
+| Prompt | letters | letter-first (10k) | tree (30k) | scoring (10k) | scoring (30k) |
+| --- | --- | --- | --- | --- | --- |
+| hi what is capital of france | `hi w i h` (loop) | `hi how with what am are can answer ask…` (loop) | `hi hello the is the what that the how is the paris is the` (loop) | **`hi paris is of france`** | `hi the is capital of france paris period` |
+| hi how are you | `hi h u e s s` | `hi how have had thanks well how same how` | `hi well good and you` | **`hi i am good and how you are`** | `hi im ood and how you are too` |
+| who are you | `i a` (loop) | `i am a assistant` | `i im am just ai be are well and how` (loop) | **`i am a assistant helpful to you`** | `hi i am a assistant helpful to you and for need anything do can…` (loop) |
+| can you recommend a good book | `a` (loop) | `a an` (loop) | `sure what you like about in about bout…` (loop) | `sure depends what you like tell you what…` (loop) | `sure depends what you like do you what like…` (loop) |
+| tell me the meaning of life | `ab s` (loop) | `the to of top` | `the is has what that` (loop) | **`well depends on you is yourself`** | `well depends on you your own upto yourself is decide…` |
 
-### Scoring mode vs letter-first mode
+### Cost and time per reply
 
-| Prompt | Scoring (default) | Letter-first (`--fast`) |
-| --- | --- | --- |
-| hi what is capital of france | `hi paris is of france` | `hi hello answer actually capital france capital is paris` |
-| hi how are you | `hi im good you are yourself how` | `hi how have had am thanks well` |
-| who are you | `i am a assistant your for to help can and ai artificial intelligence` | `i am a assistant` |
-| can you recommend a good book | `sure i can what you like about likes` (loop) | `a an` (loop) |
-| tell me the meaning of life | `well depends is you for yourself the you yourself the` (loop) | `the to of top` |
+| Mode | Jev calls | Avg time | Avg cost per reply |
+| --- | --- | --- | --- |
+| letters | 9 | 2.5 s | $0.0003 |
+| letter-first (10k) | 15 | 4.0 s | $0.0014 |
+| tree (30k) | 40 | 10.3 s | $0.0018 |
+| scoring (10k) | 35 | 11.6 s | $0.0521 |
+| scoring (30k) | 188 | 30.7 s | $0.3553 |
 
-Scoring mode starts replies much better ("sure i can", "well depends", "hi im
-good"). It gets to "paris" right away, but it still falls apart after 4–6
-words. It costs 8–18 s and $0.04–0.08 per reply, against 2–5 s and about $0.001.
+The full comparison run (25 replies) cost **$2.05** in Jev calls. Most of
+that was scoring (30k), at $1.78.
 
-## Limits
+What the numbers say:
 
-- **255 options per choice question.** A request with 256 options is
-  rejected: `Too many choices. Must have at most 255 choices.`
-- **About 32K tokens per request** (state plus all questions and options),
-  found by testing. A request with 19 questions of 250 words each fit, and
-  more did not. The longest state that fit was about 163,000 characters.
-
-## Why it fails
-
-Jev has some of the knowledge. For "what is the capital of France" it favoured
-`p` after `"the capital of france is "`, and gave `end` a probability of 0.94
-after `"paris"`. But each step is a separate, uncertain decision. After `par`,
-`s` got 0.37 and `i` only 0.24. When the top choice is always taken, one wrong
-step ruins every step after it.
-
-That matches how TypeSafe describes Jev: it "gives up string generation" and
-is built for fast, single, structured decisions. It is not built for long
-chains of dependent choices. It does well at single next-letter guesses.
-In a separate test on human-written sentences, it ranked the correct next
-letter about 3rd of 26 on average, against about 8th for a fixed
-letter-frequency order.
+- **Scoring (10k) gives the best replies.** It has the best openings and
+  reaches "paris" right away, at about $0.05 per reply.
+- **30k words are worse and cost 7 times as much.** Replies run longer and
+  pick up subtitle misspellings ("wouid", "ood", "orry"). The problem is not
+  the size of the vocabulary.
+- **Tree mode is cheap but vague.** At about $0.002 per reply, it is 30 times
+  cheaper than scoring and sometimes good ("hi well good and you"). But the
+  broad group of small everyday words ("you, i, the, to, a…") is too vague
+  for Jev to choose well.
+- **Letters mode loops almost immediately.**
 
 ## Jev knows the answer but can't write it
 
 The same question, asked two ways:
 
-**As a chat reply** (words mode):
+**As a chat reply** (letter-first mode, from a live chat):
 
 ```
 you: hi what is capital of france
@@ -132,33 +124,54 @@ const r = await jev('hi what is capital of france', {
 ```
 
 Jev has the knowledge. As a single choice, it is correct and fully confident
-in one call. As a chatbot, it has to make 24 dependent choices in a row. Each
-step is a separate decision with no plan for the whole sentence, so the reply
-becomes word salad:
+in one call. As a chatbot, it has to make dozens of dependent choices in a
+row. Each is a separate decision with no plan for the whole sentence, so the
+reply becomes word salad:
 
-- **Echoing:** words from the user's message are offered first, and Jev picks
-  them back ("hi hello", "capital france").
+- **Echoing:** it repeats the user's words ("hi hello", "capital france").
 - **No grammar:** each word is chosen alone, so the words don't join up
   ("am are can do").
 - **Loops:** once off track, it cycles ("answer actually answer") until the
   loop check stops it.
 
-**Takeaway:** use Jev where it is strong, for fast, calibrated single
-decisions such as picking an answer, routing a request or flagging risk. Have
-an LLM write the text. Jev is not a replacement for a text generator.
+Letter by letter it is the same story. Jev favoured `p` after
+`"the capital of france is "`, and gave `end` a probability of 0.94 after
+`"paris"`. But mid-word it was unsure: after `par`, `s` got 0.37 and `i` only
+0.24. One wrong step ruins every step after it.
+
+**Takeaway:** that matches how TypeSafe describes Jev: it "gives up string
+generation" and is built for fast, calibrated single decisions. Use it to pick
+an answer, route a request or flag risk, and have an LLM write the text.
+
+## Limits
+
+- **255 options per choice question.** A request with 256 options is
+  rejected: `Too many choices. Must have at most 255 choices.`
+- **About 32K tokens per request** (state plus all questions and options),
+  found by testing. A request with 19 questions of 250 words each fit, and
+  more did not. The longest state that fit was about 163,000 characters.
 
 ## Files
 
-- `chatbot.js`: `replyByLetters` and `replyByWords`
+- `chatbot.js`: the four reply modes (`replyByLetters`, `replyByWords`,
+  `replyByTree`, `replyByScoring`)
 - `chat.js`: interactive terminal chat
+- `eval.js`: runs every mode on the test prompts and writes `results/`
+- `build-tree.js`: builds `data/tree-30k.json` from word embeddings
 - `lib.js`: minimal Jev client for the OpenRouter decisions endpoint
-- `data/words-10k.txt`: 10,000 common US English words from
+- `data/words-10k.txt`: from
   [first20hours/google-10000-english](https://github.com/first20hours/google-10000-english),
   derived from the Google Web Trillion Word Corpus. Its license permits
   educational, personal and research use.
+- `data/words-30k.txt`: top 30,000 lowercase words from
+  [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords)
+  (`content/2018/en/en_50k.txt`, built from OpenSubtitles), with a small list
+  of profanities removed. Licensed
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- `data/tree-30k.json`: word groups derived from `words-30k.txt`, so also
+  CC BY-SA 4.0.
 
 ## License
 
-The code is released under the [MIT License](LICENSE). `data/words-10k.txt` is
-not covered by it; it keeps the terms of its
-[original source](https://github.com/first20hours/google-10000-english).
+The code is released under the [MIT License](LICENSE). The files in `data/`
+are not covered by it. They keep the terms of their sources, listed above.

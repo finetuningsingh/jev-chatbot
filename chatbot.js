@@ -10,10 +10,16 @@ const MAX_LETTER_STEPS = 150;
 const MAX_WORDS = 30;
 const MAX_WORD_OPTIONS = 250;
 
-const DICT = readFileSync(new URL('./data/words-10k.txt', import.meta.url), 'utf8')
-  .split('\n')
-  .map((w) => w.trim().toLowerCase())
-  .filter((w) => /^[a-z]+$/.test(w));
+// Word lists, most frequent first: 10k from web text, 30k from movie/TV subtitles.
+const VOCAB_FILES = { '10k': 'words-10k.txt', '30k': 'words-30k.txt' };
+const vocabCache = {};
+export function loadVocab(name = '10k') {
+  return (vocabCache[name] ??= readFileSync(new URL(`./data/${VOCAB_FILES[name]}`, import.meta.url), 'utf8')
+    .split('\n')
+    .map((w) => w.trim().toLowerCase())
+    .filter((w) => /^[a-z]+$/.test(w)));
+}
+const DICT = loadVocab('10k');
 
 // True when the sequence ends with the same block of up to `maxLen` items repeated `times` times,
 // e.g. "answer answers answer answers". Greedy picking gets stuck in these cycles.
@@ -122,28 +128,39 @@ const GROUPS_PER_REQUEST = 15; // headroom under the ~32K-token request limit fo
 const FINALISTS_PER_GROUP = 3;
 const END = '__end';
 
-export async function replyByScoring(history, onStep = () => {}) {
+export async function replyByScoring(history, onStep = () => {}, { vocab = '10k' } = {}) {
+  const dict = loadVocab(vocab);
   const groups = [];
-  for (let i = 0; i < DICT.length; i += GROUP_SIZE) groups.push(DICT.slice(i, i + GROUP_SIZE));
+  for (let i = 0; i < dict.length; i += GROUP_SIZE) groups.push(dict.slice(i, i + GROUP_SIZE));
   const words = [];
   let cost = 0, calls = 0, stuck = false;
   while (words.length < MAX_WORDS) {
     const state = chatState(history, words.join(' '));
     const instructions = `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which word should come next?`;
 
-    const batches = [];
-    for (let i = 0; i < groups.length; i += GROUPS_PER_REQUEST) batches.push(groups.slice(i, i + GROUPS_PER_REQUEST));
-    const round1 = await Promise.all(
-      batches.map((batch) =>
-        jev(state, Object.fromEntries(batch.map((g, i) => [`g${i}`, { type: 'choice', instructions, criteria: Object.fromEntries(g.map((w) => [w, w])) }]))),
-      ),
-    );
-    const finalists = new Set();
-    for (const r of round1) {
-      cost += r.cost, calls++;
-      for (const a of Object.values(r.answers)) {
-        Object.entries(a.probabilities).sort((x, y) => y[1] - x[1]).slice(0, FINALISTS_PER_GROUP).forEach(([w]) => finalists.add(w));
+    // Knockout rounds: Jev picks within every group of 250 in parallel and each group's top
+    // words advance, until the survivors fit in one final choice (max 255 options).
+    let candidates = groups;
+    let finalists;
+    for (;;) {
+      const batches = [];
+      for (let i = 0; i < candidates.length; i += GROUPS_PER_REQUEST) batches.push(candidates.slice(i, i + GROUPS_PER_REQUEST));
+      const round = await Promise.all(
+        batches.map((batch) =>
+          jev(state, Object.fromEntries(batch.map((g, i) => [`g${i}`, { type: 'choice', instructions, criteria: Object.fromEntries(g.map((w) => [w, w])) }]))),
+        ),
+      );
+      finalists = new Set();
+      for (const r of round) {
+        cost += r.cost, calls++;
+        for (const a of Object.values(r.answers)) {
+          Object.entries(a.probabilities).sort((x, y) => y[1] - x[1]).slice(0, FINALISTS_PER_GROUP).forEach(([w]) => finalists.add(w));
+        }
       }
+      if (finalists.size <= 250) break;
+      const next = [...finalists];
+      candidates = [];
+      for (let i = 0; i < next.length; i += GROUP_SIZE) candidates.push(next.slice(i, i + GROUP_SIZE));
     }
     finalists.delete(words.at(-1)); // no immediate repeats
 
@@ -154,6 +171,60 @@ export async function replyByScoring(history, onStep = () => {}) {
     const pick = final.answers.word.choice;
     if (pick === END) break;
     words.push(pick);
+    const k = looping(words, 2, 4);
+    if (k) {
+      words.splice(-k);
+      stuck = true;
+      break;
+    }
+    onStep(words.join(' '));
+  }
+  return { reply: words.join(' '), cost, calls, stuck };
+}
+
+// Tree mode: Jev walks a tree of word groups built by meaning (see build-tree.js).
+// Each step picks a broad group (or ends the reply), then narrower groups, then the word:
+// about 3-4 small Jev calls per word.
+const treeCache = {};
+const loadTree = (vocab) =>
+  (treeCache[vocab] ??= JSON.parse(readFileSync(new URL(`./data/tree-${vocab}.json`, import.meta.url), 'utf8')));
+
+export async function replyByTree(history, onStep = () => {}, { vocab = '30k' } = {}) {
+  const root = loadTree(vocab);
+  const words = [];
+  let cost = 0, calls = 0, stuck = false;
+  while (words.length < MAX_WORDS) {
+    const state = chatState(history, words.join(' '));
+    let node = root;
+    let ended = false;
+    while (node.children) {
+      const criteria = Object.fromEntries(node.children.map((c, i) => [`g${i}`, `Words like: ${c.label}`]));
+      if (node === root && words.length) criteria[END] = 'No next word: the reply is complete';
+      const r = await jev(state, {
+        group: {
+          type: 'choice',
+          instructions: `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which group contains the best next word?`,
+          criteria,
+        },
+      });
+      cost += r.cost, calls++;
+      if (r.answers.group.choice === END) {
+        ended = true;
+        break;
+      }
+      node = node.children[+r.answers.group.choice.slice(1)];
+    }
+    if (ended) break;
+    const options = node.words.filter((w) => w !== words.at(-1));
+    const r = await jev(state, {
+      word: {
+        type: 'choice',
+        instructions: `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which word comes next?`,
+        criteria: Object.fromEntries(options.map((w) => [w, w])),
+      },
+    });
+    cost += r.cost, calls++;
+    words.push(r.answers.word.choice);
     const k = looping(words, 2, 4);
     if (k) {
       words.splice(-k);

@@ -1,15 +1,24 @@
 // Chat with Jev: it replies by picking one letter (or word) at a time, shown live as it goes.
 // Usage: node chat.js            (scoring mode: every word competes, then a final pick)
+//        node chat.js --30k      (scoring mode with the 30k subtitle word list)
+//        node chat.js --tree     (tree mode: broad word group, narrower group, then the word)
 //        node chat.js --fast     (letter-first mode: first letter, then the word)
 //        node chat.js --letters  (pure mode: each step picks one of 26 letters, space, or end)
 import { createInterface } from 'node:readline/promises';
-import { replyByLetters, replyByWords, replyByScoring } from './chatbot.js';
+import { replyByLetters, replyByWords, replyByScoring, replyByTree } from './chatbot.js';
 import { ensureKey } from './lib.js';
 
 await ensureKey();
 
-const mode = process.argv.includes('--letters') ? 'letters' : process.argv.includes('--fast') ? 'letter-first' : 'scoring';
-const reply = { letters: replyByLetters, 'letter-first': replyByWords, scoring: replyByScoring }[mode];
+const flag = (f) => process.argv.includes(f);
+const mode = flag('--letters') ? 'letters' : flag('--fast') ? 'letter-first' : flag('--tree') ? 'tree' : flag('--30k') ? 'scoring-30k' : 'scoring';
+const reply = {
+  letters: replyByLetters,
+  'letter-first': replyByWords,
+  tree: (h, onStep) => replyByTree(h, onStep, { vocab: '30k' }),
+  scoring: (h, onStep) => replyByScoring(h, onStep, { vocab: '10k' }),
+  'scoring-30k': (h, onStep) => replyByScoring(h, onStep, { vocab: '30k' }),
+}[mode];
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 const history = [];
 

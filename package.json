@@ -4,8 +4,12 @@
   "type": "module",
   "scripts": {
     "chat": "node chat.js",
+    "chat:30k": "node chat.js --30k",
+    "chat:tree": "node chat.js --tree",
     "chat:fast": "node chat.js --fast",
-    "chat:letters": "node chat.js --letters"
+    "chat:letters": "node chat.js --letters",
+    "eval": "node eval.js",
+    "build-tree": "node build-tree.js 30k"
   },
   "license": "MIT"
 }
