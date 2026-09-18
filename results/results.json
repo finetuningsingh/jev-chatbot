@@ -90,51 +90,6 @@
     "secs": 2.949414208
   },
   {
-    "mode": "tree (30k)",
-    "prompt": "hi what is capital of france",
-    "reply": "hi hello the is the what that the how is the paris is the",
-    "cost": 0.002428944000000002,
-    "calls": 61,
-    "stuck": true,
-    "secs": 15.283180167000003
-  },
-  {
-    "mode": "tree (30k)",
-    "prompt": "hi how are you",
-    "reply": "hi well good and you",
-    "cost": 0.0008990099999999999,
-    "calls": 18,
-    "stuck": false,
-    "secs": 4.455342582999999
-  },
-  {
-    "mode": "tree (30k)",
-    "prompt": "who are you",
-    "reply": "i im am just ai be are well and how",
-    "cost": 0.0019468680000000003,
-    "calls": 46,
-    "stuck": true,
-    "secs": 12.848111833
-  },
-  {
-    "mode": "tree (30k)",
-    "prompt": "can you recommend a good book",
-    "reply": "sure what you like about in about bout in that about",
-    "cost": 0.002651838,
-    "calls": 45,
-    "stuck": true,
-    "secs": 11.705665749999998
-  },
-  {
-    "mode": "tree (30k)",
-    "prompt": "tell me the meaning of life",
-    "reply": "the is has what that",
-    "cost": 0.0010484460000000002,
-    "calls": 28,
-    "stuck": true,
-    "secs": 7.097769542
-  },
-  {
     "mode": "scoring (10k)",
     "prompt": "hi what is capital of france",
     "reply": "hi paris is of france",
@@ -225,51 +180,6 @@
     "secs": 41.546401875
   },
   {
-    "mode": "wide tree (30k)",
-    "prompt": "hi what is capital of france",
-    "reply": "paris",
-    "cost": 0.00103509,
-    "calls": 3,
-    "stuck": false,
-    "secs": 0.9569468340000001
-  },
-  {
-    "mode": "wide tree (30k)",
-    "prompt": "hi how are you",
-    "reply": "fine and or",
-    "cost": 0.0028793099999999995,
-    "calls": 10,
-    "stuck": true,
-    "secs": 3.025768333
-  },
-  {
-    "mode": "wide tree (30k)",
-    "prompt": "who are you",
-    "reply": "i im am is ist",
-    "cost": 0.00409185,
-    "calls": 14,
-    "stuck": true,
-    "secs": 3.522777417
-  },
-  {
-    "mode": "wide tree (30k)",
-    "prompt": "can you recommend a good book",
-    "reply": "sure what which",
-    "cost": 0.0029204699999999997,
-    "calls": 10,
-    "stuck": true,
-    "secs": 2.585283166
-  },
-  {
-    "mode": "wide tree (30k)",
-    "prompt": "tell me the meaning of life",
-    "reply": "well hmm hmmm",
-    "cost": 0.002699466,
-    "calls": 10,
-    "stuck": true,
-    "secs": 2.9949273749999996
-  },
-  {
     "mode": "reply tree",
     "prompt": "hi what is capital of france",
     "reply": "Paris is the capital of France.",
@@ -313,5 +223,95 @@
     "calls": 2,
     "stuck": false,
     "secs": 0.5838974590000002
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "hi what is capital of france",
+    "reply": "paris",
+    "cost": 0.0013724759999999999,
+    "calls": 4,
+    "stuck": false,
+    "secs": 1.080065875
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "hi how are you",
+    "reply": "hi am good you",
+    "cost": 0.0036343859999999994,
+    "calls": 10,
+    "stuck": false,
+    "secs": 2.6393912920000004
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "who are you",
+    "reply": "i am assistant",
+    "cost": 0.0027457920000000004,
+    "calls": 8,
+    "stuck": false,
+    "secs": 2.154992042
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "can you recommend a good book",
+    "reply": "hi can you can could can book",
+    "cost": 0.005548536000000001,
+    "calls": 16,
+    "stuck": false,
+    "secs": 4.605823125
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "well so well",
+    "cost": 0.002929584,
+    "calls": 8,
+    "stuck": false,
+    "secs": 2.568111542
+  },
+  {
+    "mode": "narrow tree (30k)",
+    "prompt": "hi what is capital of france",
+    "reply": "hello is i im is paris",
+    "cost": 0.0029685600000000007,
+    "calls": 21,
+    "stuck": false,
+    "secs": 5.300384250000001
+  },
+  {
+    "mode": "narrow tree (30k)",
+    "prompt": "hi how are you",
+    "reply": "good",
+    "cost": 0.000961632,
+    "calls": 6,
+    "stuck": false,
+    "secs": 1.4020266249999995
+  },
+  {
+    "mode": "narrow tree (30k)",
+    "prompt": "who are you",
+    "reply": "im am assistant",
+    "cost": 0.0017977680000000002,
+    "calls": 12,
+    "stuck": false,
+    "secs": 2.8556932919999998
+  },
+  {
+    "mode": "narrow tree (30k)",
+    "prompt": "can you recommend a good book",
+    "reply": "sure best well best good book for to is i",
+    "cost": 0.005113038,
+    "calls": 33,
+    "stuck": false,
+    "secs": 7.880611042000001
+  },
+  {
+    "mode": "narrow tree (30k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "i life",
+    "cost": 0.001169742,
+    "calls": 12,
+    "stuck": false,
+    "secs": 2.6634304169999994
   }
 ]

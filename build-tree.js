@@ -1,11 +1,12 @@
 // Builds a tree of groups by meaning, which Jev walks down to pick a word or a reply.
-// Every item gets an embedding, then k-means splits the items into BRANCHES groups,
-// recursively, until each group has at most LEAF_MAX items (one Jev choice).
-// Runs once; the tree is saved to data/ and the chat only reads it.
+// Every item gets an embedding (words as "word: meaning", see gloss.js), then k-means
+// splits the items into BRANCHES groups, recursively, until each group has at most
+// LEAF_MAX items (one Jev choice). Runs once; the tree is saved to data/ and the chat
+// only reads it.
 //
 // Usage:
-//   node build-tree.js words-30k 16    -> data/tree-30k.json       (tree mode)
-//   node build-tree.js words-30k 254   -> data/tree-30k-wide.json  (wide tree mode)
+//   node build-tree.js words-30k 254   -> data/tree-30k-wide.json  (word tree, the default chat mode)
+//   node build-tree.js words-30k 16    -> data/tree-30k.json       (narrow word tree)
 //   node build-tree.js replies 254     -> data/tree-replies.json   (reply tree mode)
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { ensureKey } from './lib.js';
@@ -25,12 +26,18 @@ if (!source || !(BRANCHES >= 2 && BRANCHES <= 254)) {
 await ensureKey();
 const dataFile = (name) => new URL(`./data/${name}`, import.meta.url);
 const items = readFileSync(dataFile(source.file), 'utf8').split('\n').map((s) => s.trim()).filter(Boolean);
-const rank = new Map(items.map((w, i) => [w, i])); // file order: word frequency, or reply order
+
+// Words are embedded as "word: meaning" (see gloss.js) when glosses exist, so groups form
+// by meaning; the bare word's embedding mostly encodes spelling.
+const glossFile = source.kind === 'words' && dataFile('glosses-30k.tsv');
+const glosses = new Map(glossFile && existsSync(glossFile) ? readFileSync(glossFile, 'utf8').split('\n').filter(Boolean).map((l) => l.split('\t')) : []);
+const texts = items.map((w) => (glosses.has(w) ? `${w}: ${glosses.get(w)}` : w));
+if (glossFile) console.log(`${glosses.size} of ${items.length} words have glosses`);
 
 // Embeddings are cached (git-ignored) so rebuilding with other settings costs nothing.
 const DIM = 1536;
 const cacheDir = new URL('./data/.cache/', import.meta.url);
-const cacheFile = new URL(`embeddings-${source.file}.bin`, cacheDir);
+const cacheFile = new URL(`embeddings-${source.file}${glosses.size ? '-glossed' : ''}.bin`, cacheDir);
 let flat;
 if (existsSync(cacheFile)) {
   flat = new Float32Array(readFileSync(cacheFile).buffer.slice(0));
@@ -39,7 +46,7 @@ if (existsSync(cacheFile)) {
   flat = new Float32Array(items.length * DIM);
   let cost = 0;
   for (let i = 0; i < items.length; i += 1000) {
-    const batch = items.slice(i, i + 1000);
+    const batch = texts.slice(i, i + 1000);
     const res = await fetch('https://openrouter.ai/api/v1/embeddings', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },

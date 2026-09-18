@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "chat": "node chat.js --replies",
-    "chat:scoring": "node chat.js",
-    "chat:wide": "node chat.js --wide",
-    "chat:30k": "node chat.js --30k",
+    "chat": "node chat.js",
     "chat:tree": "node chat.js --tree",
+    "chat:scoring": "node chat.js --scoring",
+    "chat:30k": "node chat.js --30k",
+    "chat:replies": "node chat.js --replies",
     "chat:fast": "node chat.js --fast",
     "chat:letters": "node chat.js --letters",
     "eval": "node eval.js"

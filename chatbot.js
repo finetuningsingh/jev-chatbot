@@ -203,29 +203,60 @@ async function walkTree(root, state, { groupPrompt, describe, allowEnd }) {
   return { node, cost, calls };
 }
 
-export async function replyByTree(history, onStep = () => {}, { tree = 'tree-30k.json' } = {}) {
+// Word tree: for every word, Jev first picks a group (out of up to 254, each described by
+// its typical words), then a word inside it. Instead of committing to Jev's single top
+// group, the walk keeps its `beam` most likely groups at every level (asked in one
+// request), and the next word is the one with the highest group x word probability.
+// Repeating a word pair already in the reply is banned, which is what greedy picking
+// otherwise loops on ("and or and or").
+export async function replyByTree(history, onStep = () => {}, { tree = 'tree-30k.json', beam = 3 } = {}) {
   const root = loadTree(tree);
   const words = [];
   let cost = 0, calls = 0, stuck = false;
+  const groupPrompt = `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which group contains the best next word?`;
+  const wordPrompt = `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which word comes next?`;
   while (words.length < MAX_WORDS) {
     const state = chatState(history, words.join(' '));
-    const walk = await walkTree(root, state, {
-      groupPrompt: `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which group contains the best next word?`,
-      describe: (label) => `Words like: ${label}`,
-      allowEnd: words.length > 0,
-    });
-    cost += walk.cost, calls += walk.calls;
-    if (!walk.node) break;
-    const options = leafItems(walk.node).filter((w) => w !== words.at(-1));
-    const r = await jev(state, {
-      word: {
-        type: 'choice',
-        instructions: `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which word comes next?`,
-        criteria: Object.fromEntries(options.map((w) => [w, w])),
-      },
-    });
+    // Frontier of (node, probability) pairs, widened level by level until all are leaves.
+    let frontier = [{ node: root, p: 1 }];
+    let pEnd = 0;
+    while (frontier.some((f) => f.node.children)) {
+      const questions = Object.fromEntries(
+        frontier.filter((f) => f.node.children).map((f, i) => {
+          const criteria = Object.fromEntries(f.node.children.map((c, j) => [`g${j}`, `Words like: ${c.label}`]));
+          if (f.node === root && words.length) criteria[END] = 'No next word: the reply is complete';
+          return [`q${i}`, { type: 'choice', instructions: groupPrompt, criteria }];
+        }),
+      );
+      const r = await jev(state, questions);
+      cost += r.cost, calls++;
+      const next = frontier.filter((f) => !f.node.children);
+      frontier.filter((f) => f.node.children).forEach((f, i) => {
+        const a = r.answers[`q${i}`];
+        for (const [key, p] of Object.entries(a.probabilities)) {
+          if (key === END) pEnd = p;
+          else next.push({ node: f.node.children[+key.slice(1)], p: f.p * p });
+        }
+      });
+      frontier = next.sort((a, b) => b.p - a.p).slice(0, beam);
+    }
+
+    // Banned: the last word again, and any word that repeats a pair already in the reply.
+    const banned = new Set([words.at(-1)]);
+    for (let i = 0; i + 1 < words.length; i++) if (words[i] === words.at(-1)) banned.add(words[i + 1]);
+    const leaves = frontier.map((f) => ({ ...f, options: leafItems(f.node).filter((w) => !banned.has(w)) })).filter((f) => f.options.length);
+    const r = await jev(
+      state,
+      Object.fromEntries(leaves.map((f, i) => [`q${i}`, { type: 'choice', instructions: wordPrompt, criteria: Object.fromEntries(f.options.map((w) => [w, w])) }])),
+    );
     cost += r.cost, calls++;
-    words.push(r.answers.word.choice);
+    let best = { w: null, p: -1 };
+    leaves.forEach((f, i) => {
+      for (const [w, p] of Object.entries(r.answers[`q${i}`].probabilities)) if (f.p * p > best.p) best = { w, p: f.p * p };
+    });
+    // Ending is one leaf competing with every word: stop when it is likelier than the best word.
+    if (pEnd > best.p) break;
+    words.push(best.w);
     const k = looping(words, 2, 4);
     if (k) {
       words.splice(-k);
