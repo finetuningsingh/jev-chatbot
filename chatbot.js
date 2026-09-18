@@ -112,3 +112,55 @@ export async function replyByWords(history, onStep = () => {}) {
   }
   return { reply: words.join(' '), cost, calls, stuck };
 }
+
+// Score-then-choose mode: every word in the dictionary competes at each step.
+// Round 1 splits the dictionary into groups of up to 250 and Jev picks within every group
+// in parallel (grouped into several requests, since one request holds ~32K tokens,
+// about 19 groups). Round 2 picks the next word from each group's top candidates.
+const GROUP_SIZE = 250;
+const GROUPS_PER_REQUEST = 15; // headroom under the ~32K-token request limit for conversation state
+const FINALISTS_PER_GROUP = 3;
+const END = '__end';
+
+export async function replyByScoring(history, onStep = () => {}) {
+  const groups = [];
+  for (let i = 0; i < DICT.length; i += GROUP_SIZE) groups.push(DICT.slice(i, i + GROUP_SIZE));
+  const words = [];
+  let cost = 0, calls = 0, stuck = false;
+  while (words.length < MAX_WORDS) {
+    const state = chatState(history, words.join(' '));
+    const instructions = `${ROLE} Your reply is written one word at a time; \`reply_so_far\` is what you have written. Which word should come next?`;
+
+    const batches = [];
+    for (let i = 0; i < groups.length; i += GROUPS_PER_REQUEST) batches.push(groups.slice(i, i + GROUPS_PER_REQUEST));
+    const round1 = await Promise.all(
+      batches.map((batch) =>
+        jev(state, Object.fromEntries(batch.map((g, i) => [`g${i}`, { type: 'choice', instructions, criteria: Object.fromEntries(g.map((w) => [w, w])) }]))),
+      ),
+    );
+    const finalists = new Set();
+    for (const r of round1) {
+      cost += r.cost, calls++;
+      for (const a of Object.values(r.answers)) {
+        Object.entries(a.probabilities).sort((x, y) => y[1] - x[1]).slice(0, FINALISTS_PER_GROUP).forEach(([w]) => finalists.add(w));
+      }
+    }
+    finalists.delete(words.at(-1)); // no immediate repeats
+
+    const criteria = Object.fromEntries([...finalists].map((w) => [w, w]));
+    if (words.length) criteria[END] = 'Stop here: the reply is complete';
+    const final = await jev(state, { word: { type: 'choice', instructions, criteria } });
+    cost += final.cost, calls++;
+    const pick = final.answers.word.choice;
+    if (pick === END) break;
+    words.push(pick);
+    const k = looping(words, 2, 4);
+    if (k) {
+      words.splice(-k);
+      stuck = true;
+      break;
+    }
+    onStep(words.join(' '));
+  }
+  return { reply: words.join(' '), cost, calls, stuck };
+}

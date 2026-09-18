@@ -13,7 +13,8 @@ Requires Node 18+ and an [OpenRouter key](https://openrouter.ai/keys) with Jev
 access. There is nothing to install.
 
 ```sh
-npm run chat           # words mode
+npm run chat           # scoring mode (best, ~10 s and ~$0.05 per reply)
+npm run chat:fast      # letter-first mode (~3 s, ~$0.001 per reply)
 npm run chat:letters   # letters mode
 ```
 
@@ -35,7 +36,18 @@ Type a message and press Enter to watch Jev build its reply. An empty line quits
   candidates starting with that letter. Candidates are words from the
   conversation first, then `data/words-10k.txt`. That takes two Jev calls per word.
 
-Both modes always take the top choice, without sampling. Options that make no
+- **Scoring mode** (`replyByScoring`, the default): every word in the
+  dictionary competes at every step. Round 1 splits the ~9,900 words into
+  groups of 250 (Jev's limit is 255 options per question). Jev picks within
+  every group in parallel, using 3 requests of 15 groups each because of the
+  ~32K-token request limit. Round 2 picks the next word from each group's top
+  3, or ends the reply. That's 4 Jev calls per word.
+
+The letter-first mode has two built-in problems. Jev has to know the word
+before it can pick the right first letter, and a wrong letter rules out the
+right word. Scoring mode removes both.
+
+All modes always take the top choice, without sampling. Options that make no
 sense are removed: a double space, ending an empty reply, and repeating the
 previous word. A reply is cut off and marked
 `[stopped: Jev started repeating itself]` when it falls into a cycle.
@@ -52,6 +64,28 @@ previous word. A reply is cut off and marked
 
 Words mode takes about 2–6 s and costs under $0.001 per reply. Letters mode
 takes about 30 s per reply when it runs to its 150-step limit.
+
+### Scoring mode vs letter-first mode
+
+| Prompt | Scoring (default) | Letter-first (`--fast`) |
+| --- | --- | --- |
+| hi what is capital of france | `hi paris is of france` | `hi hello answer actually capital france capital is paris` |
+| hi how are you | `hi im good you are yourself how` | `hi how have had am thanks well` |
+| who are you | `i am a assistant your for to help can and ai artificial intelligence` | `i am a assistant` |
+| can you recommend a good book | `sure i can what you like about likes` (loop) | `a an` (loop) |
+| tell me the meaning of life | `well depends is you for yourself the you yourself the` (loop) | `the to of top` |
+
+Scoring mode starts replies much better ("sure i can", "well depends", "hi im
+good"). It gets to "paris" right away, but it still falls apart after 4–6
+words. It costs 8–18 s and $0.04–0.08 per reply, against 2–5 s and about $0.001.
+
+## Limits
+
+- **255 options per choice question.** A request with 256 options is
+  rejected: `Too many choices. Must have at most 255 choices.`
+- **About 32K tokens per request** (state plus all questions and options),
+  found by testing. A request with 19 questions of 250 words each fit, and
+  more did not. The longest state that fit was about 163,000 characters.
 
 ## Why it fails
 

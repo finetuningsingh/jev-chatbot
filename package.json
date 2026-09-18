@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "chat": "node chat.js",
+    "chat:fast": "node chat.js --fast",
     "chat:letters": "node chat.js --letters"
   },
   "license": "MIT"
