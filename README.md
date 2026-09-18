@@ -172,7 +172,7 @@ odd and the bad:
 
 | Prompt | Word tree |
 | --- | --- |
-| what is 2 plus 2 | `two` |
+| what is 2 plus 2 | `four` (other runs: `two`, `is fourth`) |
 | what day comes after monday | `tuesday` |
 | how many legs does a spider have | `viii` |
 | is the earth flat | `no` |
@@ -189,9 +189,16 @@ odd and the bad:
 | what color is the sky | `it is depends time day time night time daytime time nighttime` |
 | what is water made of | `is made of it two of is it is of three is three it that is that it` |
 
-The pattern holds: one-word answers are usually right (`two`, `tuesday`,
+The pattern holds: one-word answers are usually right (`four`, `tuesday`,
 `no`, `viii`), and the answer is often in there somewhere (`tokyo`, `whale`,
 `william`, `chicken`), but the words around it don't form a sentence.
+
+Answers vary between runs. "what is 2 plus 2" five times in a row gave
+`two`, `two`, `is two fourth`, `is fourth`, `is fourth`, and `four` in a live
+chat. Inside the numbers group Jev is steady (`four` 0.97, `two` 0.03 on every
+call), but at the first step three groups are nearly tied (greetings 0.32,
+numbers 0.26, "is, have, was" 0.24) and Jev's probabilities move by a few
+hundredths from call to call, so the winner flips.
 
 ### The reply tree's limits
 
