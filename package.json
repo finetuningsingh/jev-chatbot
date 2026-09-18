@@ -5,5 +5,6 @@
   "scripts": {
     "chat": "node chat.js",
     "chat:letters": "node chat.js --letters"
-  }
+  },
+  "license": "MIT"
 }

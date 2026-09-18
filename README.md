@@ -71,3 +71,9 @@ letter-frequency order.
   [first20hours/google-10000-english](https://github.com/first20hours/google-10000-english),
   derived from the Google Web Trillion Word Corpus. Its license permits
   educational, personal and research use.
+
+## License
+
+The code is released under the [MIT License](LICENSE). `data/words-10k.txt` is
+not covered by it; it keeps the terms of its
+[original source](https://github.com/first20hours/google-10000-english).
