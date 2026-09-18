@@ -1,0 +1,9 @@
+{
+  "name": "jev-chatbot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "chat": "node chat.js",
+    "chat:letters": "node chat.js --letters"
+  }
+}
