@@ -124,17 +124,20 @@ function label(ids) {
   return typical.sort((a, b) => items[a].length - items[b].length).slice(0, 2).map((i) => `"${items[i].slice(0, 90)}"`).join(' / ');
 }
 
-function build(ids) {
+function build(ids, isRoot = true) {
   const node = { label: label(ids) };
   if (ids.length <= LEAF_MAX) return { ...node, items: [...ids].sort((a, b) => a - b).map((i) => items[i]) };
-  let { groups } = kmeans(ids, Math.min(BRANCHES, Math.ceil(ids.length / 2)));
+  // The root always splits into BRANCHES groups. A group that is still too big is split
+  // into just enough subgroups of ~125 words, not into BRANCHES tiny ones.
+  const k = isRoot ? BRANCHES : Math.min(BRANCHES, Math.max(2, Math.ceil(ids.length / 125)));
+  let { groups } = kmeans(ids, k);
   // A degenerate split (one group holding nearly everything) falls back to even chunks.
   if (Math.max(...groups.map((g) => g.length)) > ids.length * 0.9) {
     const size = Math.ceil(ids.length / BRANCHES);
     groups = [];
     for (let i = 0; i < ids.length; i += size) groups.push(ids.slice(i, i + size));
   }
-  return { ...node, size: ids.length, children: groups.map(build) };
+  return { ...node, size: ids.length, children: groups.map((g) => build(g, false)) };
 }
 
 const t0 = performance.now();

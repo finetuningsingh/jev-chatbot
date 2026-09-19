@@ -225,51 +225,6 @@
     "secs": 0.5838974590000002
   },
   {
-    "mode": "word tree (30k)",
-    "prompt": "hi what is capital of france",
-    "reply": "paris",
-    "cost": 0.0013724759999999999,
-    "calls": 4,
-    "stuck": false,
-    "secs": 1.080065875
-  },
-  {
-    "mode": "word tree (30k)",
-    "prompt": "hi how are you",
-    "reply": "hi am good you",
-    "cost": 0.0036343859999999994,
-    "calls": 10,
-    "stuck": false,
-    "secs": 2.6393912920000004
-  },
-  {
-    "mode": "word tree (30k)",
-    "prompt": "who are you",
-    "reply": "i am assistant",
-    "cost": 0.0027457920000000004,
-    "calls": 8,
-    "stuck": false,
-    "secs": 2.154992042
-  },
-  {
-    "mode": "word tree (30k)",
-    "prompt": "can you recommend a good book",
-    "reply": "hi can you can could can book",
-    "cost": 0.005548536000000001,
-    "calls": 16,
-    "stuck": false,
-    "secs": 4.605823125
-  },
-  {
-    "mode": "word tree (30k)",
-    "prompt": "tell me the meaning of life",
-    "reply": "well so well",
-    "cost": 0.002929584,
-    "calls": 8,
-    "stuck": false,
-    "secs": 2.568111542
-  },
-  {
     "mode": "narrow tree (30k)",
     "prompt": "hi what is capital of france",
     "reply": "hello is i im is paris",
@@ -313,5 +268,50 @@
     "calls": 12,
     "stuck": false,
     "secs": 2.6634304169999994
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "hi what is capital of france",
+    "reply": "paris",
+    "cost": 0.0013644120000000002,
+    "calls": 4,
+    "stuck": false,
+    "secs": 1.288791166
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "hi how are you",
+    "reply": "hi good you",
+    "cost": 0.002823576,
+    "calls": 8,
+    "stuck": false,
+    "secs": 2.423954166
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "who are you",
+    "reply": "i am is",
+    "cost": 0.002716728,
+    "calls": 8,
+    "stuck": false,
+    "secs": 2.303586417
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "can you recommend a good book",
+    "reply": "i you i the you the",
+    "cost": 0.005034413999999999,
+    "calls": 14,
+    "stuck": false,
+    "secs": 4.086314000000001
+  },
+  {
+    "mode": "word tree (30k)",
+    "prompt": "tell me the meaning of life",
+    "reply": "is meaning purpose",
+    "cost": 0.0026111399999999996,
+    "calls": 8,
+    "stuck": false,
+    "secs": 2.232498834
   }
 ]
