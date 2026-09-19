@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat with Jev</title>
+<meta name="description" content="Chat with TypeSafe's Jev, a model that can't write: every word is picked from 30,000 words through 254 meaning groups. Your OpenRouter key stays in your browser.">
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --text: #1c1b18; --muted: #6b6960; --line: #e1dfd7;
+    --accent: #2f5bea; --accent-text: #ffffff; --user: #e9eefb; --jev: #f1efe8; --danger: #b3261e;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141414; --panel: #1e1e1e; --text: #ececec; --muted: #9a9a9a; --line: #333;
+      --accent: #6b8cff; --accent-text: #0b1020; --user: #24304f; --jev: #262626; --danger: #ff7b72;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141414; --panel: #1e1e1e; --text: #ececec; --muted: #9a9a9a; --line: #333;
+    --accent: #6b8cff; --accent-text: #0b1020; --user: #24304f; --jev: #262626; --danger: #ff7b72;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 120px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .sub a { color: inherit; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+  input[type="password"], input[type="text"], textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .check { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+  .modes { display: flex; gap: 6px; }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  #log { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: var(--user); }
+  .msg.jev { align-self: flex-start; background: var(--jev); }
+  .msg .meta { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .msg.jev.thinking::after { content: "▍"; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .composer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding: 12px 16px; }
+  .composer form { max-width: 720px; margin: 0 auto; display: flex; gap: 8px; }
+  .composer textarea { resize: none; height: 46px; }
+  .totals { max-width: 720px; margin: 6px auto 0; font-size: 12px; color: var(--muted); }
+  .error { color: var(--danger); font-size: 14px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Chat with Jev</h1>
+  <p class="sub">
+    <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">TypeSafe's Jev</a> can't write. It only picks from options.
+    Every word here is chosen from 30,000 words: 1 of 254 meaning groups, then the word.
+    Expect short answers and word salad. <a href="https://github.com/finetuningsingh/jev-chatbot">How it works</a>.
+  </p>
+
+  <section class="panel" id="keyPanel">
+    <label for="key">Your OpenRouter API key</label>
+    <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…">
+    <div class="row">
+      <button class="primary" id="saveKey">Use this key</button>
+      <span class="check"><input type="checkbox" id="remember"><label for="remember" style="margin:0">Remember on this device</label></span>
+    </div>
+    <p class="note">
+      The key goes from your browser straight to openrouter.ai and nowhere else. This page has no server.
+      Without "remember", it is kept only until you close this tab. Get a key at
+      <a href="https://openrouter.ai/keys">openrouter.ai/keys</a>. Each reply costs about $0.003.
+    </p>
+  </section>
+
+  <section class="panel hidden" id="chatPanel">
+    <div class="row" style="margin-top:0; justify-content: space-between">
+      <div class="modes" role="group" aria-label="Mode">
+        <button data-mode="tree" aria-pressed="true" title="Picks one word at a time from 30,000 words">Word tree</button>
+        <button data-mode="replies" aria-pressed="false" title="Picks one whole reply out of 17,063 real assistant replies">Reply tree</button>
+      </div>
+      <div class="row" style="margin-top:0">
+        <span class="note" id="keyStatus" style="margin:0"></span>
+        <button id="forgetKey">Forget key</button>
+        <button id="clear">Clear chat</button>
+      </div>
+    </div>
+    <p class="error hidden" id="error"></p>
+  </section>
+
+  <div id="log"></div>
+</main>
+
+<div class="composer hidden" id="composer">
+  <form id="form">
+    <textarea id="text" placeholder="Say something to Jev…" rows="1"></textarea>
+    <button class="primary" id="send" type="submit">Send</button>
+    <button id="stop" type="button" class="hidden">Stop</button>
+  </form>
+  <div class="totals" id="totals"></div>
+</div>
+
+<script type="module">
+  import { replyByTree, replyByReplyTree } from './web/jev.js';
+
+  const $ = (id) => document.getElementById(id);
+  const STORE = 'openrouter_key';
+  let key = null, mode = 'tree', history = [], totalCost = 0, totalCalls = 0, controller = null;
+
+  function setKey(k, remember) {
+    key = k;
+    try {
+      sessionStorage.setItem(STORE, k);
+      if (remember) localStorage.setItem(STORE, k); else localStorage.removeItem(STORE);
+    } catch {}
+    $('keyStatus').textContent = remember ? 'Key saved on this device' : 'Key kept for this tab only';
+    $('keyPanel').classList.add('hidden');
+    $('chatPanel').classList.remove('hidden');
+    $('composer').classList.remove('hidden');
+    $('text').focus();
+  }
+  function forgetKey() {
+    key = null;
+    try { sessionStorage.removeItem(STORE); localStorage.removeItem(STORE); } catch {}
+    $('key').value = '';
+    $('keyPanel').classList.remove('hidden');
+    $('chatPanel').classList.add('hidden');
+    $('composer').classList.add('hidden');
+  }
+  try {
+    const remembered = localStorage.getItem(STORE), session = sessionStorage.getItem(STORE);
+    if (remembered) setKey(remembered, true); else if (session) setKey(session, false);
+  } catch {}
+
+  $('saveKey').onclick = () => {
+    const k = $('key').value.trim();
+    if (!/^sk-or-/.test(k)) { $('key').focus(); return showError('That does not look like an OpenRouter key (they start with sk-or-).'); }
+    hideError();
+    setKey(k, $('remember').checked);
+  };
+  $('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveKey').click(); });
+  $('forgetKey').onclick = forgetKey;
+  $('clear').onclick = () => { history = []; $('log').innerHTML = ''; };
+  for (const b of document.querySelectorAll('.modes button')) {
+    b.onclick = () => {
+      mode = b.dataset.mode;
+      for (const o of document.querySelectorAll('.modes button')) o.setAttribute('aria-pressed', o === b);
+    };
+  }
+
+  function showError(msg) { $('error').textContent = msg; $('error').classList.remove('hidden'); }
+  function hideError() { $('error').classList.add('hidden'); }
+  function add(role, text) {
+    const el = document.createElement('div');
+    el.className = `msg ${role}`;
+    el.textContent = text;
+    $('log').appendChild(el);
+    el.scrollIntoView({ block: 'end' });
+    return el;
+  }
+  function totals() {
+    $('totals').textContent = totalCalls ? `This chat: ${totalCalls} Jev calls, $${totalCost.toFixed(4)}` : '';
+  }
+
+  $('text').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form').requestSubmit(); }
+  });
+  $('stop').onclick = () => controller?.abort();
+
+  $('form').onsubmit = async (e) => {
+    e.preventDefault();
+    const text = $('text').value.trim();
+    if (!text || !key || controller) return;
+    hideError();
+    $('text').value = '';
+    history.push({ role: 'user', text });
+    add('user', text);
+    const el = add('jev', '');
+    el.classList.add('thinking');
+    $('send').classList.add('hidden'); $('stop').classList.remove('hidden');
+    controller = new AbortController();
+    const t0 = performance.now();
+    try {
+      const run = mode === 'replies' ? replyByReplyTree : replyByTree;
+      const r = await run(key, history, (soFar) => { el.textContent = soFar; }, { signal: controller.signal });
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      el.textContent = r.reply || '(nothing)';
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = `${r.calls} Jev calls · ${secs}s · $${r.cost.toFixed(4)}${r.stuck ? ' · stopped: Jev started repeating itself' : ''}`;
+      el.appendChild(meta);
+      history.push({ role: 'assistant', text: r.reply });
+      totalCost += r.cost; totalCalls += r.calls; totals();
+    } catch (err) {
+      el.textContent = err.name === 'AbortError' ? '(stopped)' : '(error)';
+      if (err.name !== 'AbortError') showError(err.message);
+      history.pop();
+    } finally {
+      el.classList.remove('thinking');
+      controller = null;
+      $('send').classList.remove('hidden'); $('stop').classList.add('hidden');
+      $('text').focus();
+    }
+  };
+</script>
+</body>
+</html>
