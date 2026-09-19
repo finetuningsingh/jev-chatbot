@@ -17,7 +17,19 @@ not a chain of dependent ones. As a comparison, a **reply tree** where Jev
 picks a whole existing reply instead of a word answers all five test prompts
 in 0.6 s for $0.0008, but it can't say anything that isn't already in its list.
 
-## Run
+## Try it in the browser
+
+**https://finetuningsingh.github.io/jev-chatbot/**
+
+Paste your own [OpenRouter key](https://openrouter.ai/keys) and chat. The
+page is static (`index.html` and `web/jev.js`, hosted on GitHub Pages) and
+has no server: your browser calls openrouter.ai directly, and the key is sent
+nowhere else. It is kept in the tab's session storage, or in local storage if
+you tick "Remember on this device", and "Forget key" removes it. Each reply
+costs about $0.003 of your OpenRouter credit. The page offers the word tree
+(default) and the reply tree.
+
+## Run locally
 
 Requires Node 18+ and an [OpenRouter key](https://openrouter.ai/keys) with Jev
 access. There is nothing to install.
@@ -281,6 +293,7 @@ doesn't exist yet.
 - `chatbot.js`: the reply modes (`replyByTree`, `replyByScoring`,
   `replyByWords`, `replyByLetters`, `replyByReplyTree`)
 - `chat.js`: interactive terminal chat
+- `index.html`, `web/jev.js`: the browser chat (word tree and reply tree), hosted on GitHub Pages
 - `eval.js`: runs every mode on the test prompts and writes `results/`
 - `gloss.js`: writes a one-line meaning for every word to `data/glosses-30k.tsv`
 - `build-tree.js`: builds the trees in `data/` from embeddings (cached in the
