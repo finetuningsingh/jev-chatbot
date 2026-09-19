@@ -22,7 +22,7 @@ export async function jev(key, state, questions, signal) {
 const trees = {};
 export async function loadTree(file) {
   if (!trees[file]) {
-    const res = await fetch(new URL(`../data/${file}`, import.meta.url));
+    const res = await fetch(new URL(`../data/${file}?v=2`, import.meta.url));
     if (!res.ok) throw new Error(`Could not load ${file} (${res.status})`);
     trees[file] = await res.json();
   }
