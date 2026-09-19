@@ -38,8 +38,6 @@
   button:disabled { opacity: .5; cursor: default; }
   .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
   .check { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
-  .modes { display: flex; gap: 6px; }
-  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
   #log { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
   .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }
   .msg.user { align-self: flex-end; background: var(--user); }
@@ -80,10 +78,7 @@
 
   <section class="panel hidden" id="chatPanel">
     <div class="row" style="margin-top:0; justify-content: space-between">
-      <div class="modes" role="group" aria-label="Mode">
-        <button data-mode="tree" aria-pressed="true" title="Picks one word at a time from 30,000 words">Word tree</button>
-        <button data-mode="replies" aria-pressed="false" title="Picks one whole reply out of 17,063 real assistant replies">Reply tree</button>
-      </div>
+      <span class="note" style="margin:0">Word tree: 1 of 254 meaning groups, then the word, for every word.</span>
       <div class="row" style="margin-top:0">
         <span class="note" id="keyStatus" style="margin:0"></span>
         <button id="forgetKey">Forget key</button>
@@ -106,11 +101,11 @@
 </div>
 
 <script type="module">
-  import { replyByTree, replyByReplyTree } from './web/jev.js';
+  import { replyByTree } from './web/jev.js';
 
   const $ = (id) => document.getElementById(id);
   const STORE = 'openrouter_key';
-  let key = null, mode = 'tree', history = [], totalCost = 0, totalCalls = 0, controller = null;
+  let key = null, history = [], totalCost = 0, totalCalls = 0, controller = null;
 
   function setKey(k, remember) {
     key = k;
@@ -146,12 +141,6 @@
   $('key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('saveKey').click(); });
   $('forgetKey').onclick = forgetKey;
   $('clear').onclick = () => { history = []; $('log').innerHTML = ''; };
-  for (const b of document.querySelectorAll('.modes button')) {
-    b.onclick = () => {
-      mode = b.dataset.mode;
-      for (const o of document.querySelectorAll('.modes button')) o.setAttribute('aria-pressed', o === b);
-    };
-  }
 
   function showError(msg) { $('error').textContent = msg; $('error').classList.remove('hidden'); }
   function hideError() { $('error').classList.add('hidden'); }
@@ -186,8 +175,7 @@
     controller = new AbortController();
     const t0 = performance.now();
     try {
-      const run = mode === 'replies' ? replyByReplyTree : replyByTree;
-      const r = await run(key, history, (soFar) => { el.textContent = soFar; }, { signal: controller.signal });
+      const r = await replyByTree(key, history, (soFar) => { el.textContent = soFar; }, { signal: controller.signal });
       const secs = ((performance.now() - t0) / 1000).toFixed(1);
       el.textContent = r.reply || '(nothing)';
       const meta = document.createElement('span');

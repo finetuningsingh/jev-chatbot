@@ -1,4 +1,4 @@
-// Browser port of the word tree and reply tree modes (see chatbot.js for the Node version).
+// Browser port of the word tree mode (see chatbot.js for the Node version).
 // The page calls OpenRouter directly with the visitor's key; there is no server in between.
 const ENDPOINT = 'https://openrouter.ai/api/alpha/decisions';
 const MODEL = 'typesafe/jev-1.13';
@@ -99,28 +99,4 @@ export async function replyByTree(key, history, onStep = () => {}, { tree = 'tre
     onStep(words.join(' '));
   }
   return { reply: words.join(' '), cost, calls, stuck };
-}
-
-// Reply tree: pick 1 of 254 topic groups, then a whole reply from real assistant replies.
-export async function replyByReplyTree(key, history, onStep = () => {}, { signal } = {}) {
-  const root = await loadTree('tree-replies.json');
-  const state = { conversation: history };
-  let node = root, cost = 0, calls = 0;
-  while (node.children) {
-    const criteria = Object.fromEntries(node.children.map((c, i) => [`g${i}`, `Replies like: ${c.label}`]));
-    const r = await jev(key, state, { group: { type: 'choice', instructions: `${ROLE} Which group contains the best reply to the user's last message?`, criteria } }, signal);
-    cost += r.cost, calls++;
-    node = node.children[+r.answers.group.choice.slice(1)];
-  }
-  const options = node.items;
-  const r = await jev(
-    key,
-    state,
-    { reply: { type: 'choice', instructions: `${ROLE} Which of these is the best reply to the user's last message?`, criteria: Object.fromEntries(options.map((t, i) => [`r${i}`, t])) } },
-    signal,
-  );
-  cost += r.cost, calls++;
-  const reply = options[+r.answers.reply.choice.slice(1)];
-  onStep(reply);
-  return { reply, cost, calls, stuck: false };
 }
