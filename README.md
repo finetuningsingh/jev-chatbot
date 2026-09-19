@@ -293,7 +293,7 @@ doesn't exist yet.
 - `chatbot.js`: the reply modes (`replyByTree`, `replyByScoring`,
   `replyByWords`, `replyByLetters`, `replyByReplyTree`)
 - `chat.js`: interactive terminal chat
-- `index.html`, `web/jev.js`: the browser chat (word tree and reply tree), hosted on GitHub Pages
+- `index.html`, `web/jev.js`: the browser chat (word tree only), hosted on GitHub Pages
 - `eval.js`: runs every mode on the test prompts and writes `results/`
 - `gloss.js`: writes a one-line meaning for every word to `data/glosses-30k.tsv`
 - `build-tree.js`: builds the trees in `data/` from embeddings (cached in the
